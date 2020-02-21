@@ -52,17 +52,24 @@ from adafruit_register.i2c_bits import RWBits, ROBits
 from adafruit_register.i2c_bit import RWBit
 
 _WHO_AM_I = const(0x0F)
+
 _CTRL_REG1 = const(0x20)
 _CTRL_REG2 = const(0x21)
-_CTRL_REG_3 = const(0x22)   #Third control regsiter; DRDY_H_L, DRDY
-_HUMIDITY_OUT = const(0x28| 0x80) #Humidity output register (LSByte)
-_TEMP_OUT_L = const(0x2A)   #Temperature output register (LSByte)
+_CTRL_REG3 = const(0x22)   #Third control regsiter; DRDY_H_L, DRDY
+
+_HUMIDITY_OUT_L = const(0x28 | 0x80) #Humidity output register (LSByte)
+_TEMP_OUT_L = const(0x2A | 0x80)   #Temperature output register (LSByte)
+
 _H0_RH_X2 = const(0x30)     #Humididy calibration LSB values
 _H1_RH_X2 = const(0x31)     #Humididy calibration LSB values
-_T0_DEGC_X8 = const(0x32|0x80)   #First byte of T0, T1 calibration values
-_T1_T0_MSB = const(0x35|0x80)    #Top 2 bits of T0 and T1 (each are 10 bits)
-_H0_T0 = const(0x36|0x80)        #Humididy calibration Time 0 value
-_H0_T1 = const(0x3A|0x80)        #Humididy calibration Time 1 value
+
+_T0_DEGC_X8 = const(0x32)   #First byte of T0, T1 calibration values
+_T1_DEGC_X8 = const(0x33)   #First byte of T0, T1 calibration values
+_T1_T0_MSB = const(0x35)    #Top 2 bits of T0 and T1 (each are 10 bits)
+
+_H0_T0_OUT = const(0x36|0x80)        #Humididy calibration Time 0 value
+_H1_T1_OUT = const(0x3A|0x80)        #Humididy calibration Time 1 value
+
 _T0_OUT = const(0x3C|0x80)       #T0_OUT LSByte
 _T1_OUT = const(0x3E|0x80)       #T1_OUT LSByte
 
@@ -110,8 +117,6 @@ class Rate(CV):
     +-----------------------+------------------------------------------------------------------+
     | ``Rate.RATE_12_5_HZ`` | 12.5 Hz                                                          |
     +-----------------------+------------------------------------------------------------------+
-    | ``Rate.RATE_25_HZ``   | 25 Hz                                                            |
-    +-----------------------+------------------------------------------------------------------+
 
     """
 
@@ -127,7 +132,8 @@ Rate.add_values(
     )
 )
 
-
+def bp(val):
+    return format(val, "#010b")
 class HTS221:  # pylint: disable=too-many-instance-attributes
     """Library for the ST LPS2x family of humidity sensors
 
@@ -142,8 +148,25 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
     enabled = RWBit(_CTRL_REG1, 7)
     """Controls the power down state of the sensor. Setting to `False` will shut the sensor down"""
     _data_rate = RWBits(2, _CTRL_REG1, 0)
+
     _raw_temperature = ROUnaryStruct(_TEMP_OUT_L, "<h")
-    _raw_humidity = ROUnaryStruct(_HUMIDITY_OUT, "<b")
+    _raw_humidity = ROUnaryStruct(_HUMIDITY_OUT_L, "<b")
+
+
+    # humidity calibration consts
+    _t0_deg_c_x8_lsbyte = ROBits(8, _T0_DEGC_X8, 0)
+    _t1_deg_c_x8_lsbyte = ROBits(8, _T1_DEGC_X8, 0)
+    _t1_t0_deg_c_x8_msbits = ROBits(4, _T1_T0_MSB, 0)
+
+    _t0_out = ROUnaryStruct(_T0_OUT, "<h")
+    _t1_out = ROUnaryStruct(_T1_OUT, "<h")
+
+    _h0_rh_x2 = ROUnaryStruct(_H0_RH_X2, "<b")
+    _h1_rh_x2 = ROUnaryStruct(_H1_RH_X2, "<b")
+
+    _h0_t0_out = ROUnaryStruct(_H0_T0_OUT, "<h")
+    _h1_t0_out = ROUnaryStruct(_H1_T1_OUT, "<h")
+
 
     def __init__(self, i2c_bus, address=_HTS221_DEFAULT_ADDRESS):
         self.i2c_device = i2cdevice.I2CDevice(i2c_bus, address)
@@ -154,39 +177,79 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
         self.boot()
         self.enabled = True
         self.data_rate = Rate.RATE_12_5_HZ  # pylint:disable=no-member
+        self.T0_DEG_C = None
+        self.T1_DEG_C = None
+        self.T0_OUT = None
+        self.T1_OUT = None
+
+        self.H0_RH = None
+        self.H1_RH = None
+        self.H0_T0_OUT = None
+        self.H1_T0_OUT = None
         self._load_calibration_values()
 
+        print(" T0_DEG_C", self.T0_DEG_C)
+        print(" T1_DEG_C", self. T1_DEG_C)
+        print("   T0_OUT", self.T0_OUT)
+        print("   T1_OUT", self.T1_OUT)
+
+        print("    H0_RH", self.H0_RH)
+        print("    H1_RH", self.H1_RH)
+        print("H0_T0_OUT", self.H0_T0_OUT)
+        print("H1_T0_OUT", self.H1_T0_OUT)
+
     def _load_calibration_values(self):
-      # _H0_RH_X2 = const(0x30)     #Humididy calibration LSB values
-      # _H1_RH_X2 = const(0x31)     #Humididy calibration LSB values
-      # _T0_DEGC_X8 = const(0x32|0x80)   #First byte of T0, T1 calibration values
-      # _T1_T0_MSB = const(0x35|0x80)    #Top 2 bits of T0 and T1 (each are 10 bits)
-      # _H0_T0 = const(0x36|0x80)        #Humididy calibration Time 0 value
-      # _H0_T1 = const(0x3A|0x80)        #Humididy calibration Time 1 value
-      # _T0_OUT = const(0x3C|0x80)       #T0_OUT LSByte
-      # _T1_OUT = const(0x3E|0x80)       #T1_OUT LSByte
-      # self._T0 = 0
-      # self._T1 = 0
-      # self._T1 = (buffer[0] & 0b1100)
-      # self._T1 <<= 6
-      # self._T0 = (buffer[0] & 0b0011)
-      # self._T0 <<= 8
+        print("loading")
+        t1_t0_msbs = self._t1_t0_deg_c_x8_msbits
+        # print("t1t0msbs:", bp(t1_t0_msbs))
 
-      # t0_degc_x8_l.read(buffer, 2)
-      # #  Or self._T1[0:7] on to the above to make a full 10 bits
-      # self._T0 |= buffer[0]
-      # self._T0 >>= 3 #// divide by 8 (as documented)
-      # self._T1 |= buffer[1]
-      # self._T1 >>= 3
-      #h0_rh_x2.read(&H0)
-      #h1_rh_x2.read(&H1)
+        self.T0_DEG_C = self._t0_deg_c_x8_lsbyte
+        self.T0_DEG_C |= ((t1_t0_msbs & 0b0011) << 8)
+        # print("\nT0_DEG_C:", bp(self.T0_DEG_C))
 
-      #h0_t0_out.read(&H0_T0_OUT)
-      #h1_t0_out.read(&H1_T0_OUT)
+        self.T1_DEG_C = self._t1_deg_c_x8_lsbyte
+        # print("\nT1_DEG_C:", bp(self.T1_DEG_C))
+        self.T1_DEG_C |= (t1_t0_msbs & 0b1100) << 6
+        # print("\nT1_DEG_C:", bp(self.T1_DEG_C))
+        self.T0_OUT = self._t0_out
+        self.T1_OUT = self._t1_out
+        # self.T1_OUT = None
 
-      # to_out.read(&self._T0_OUT)
-      # t1_out.read(&T1_OUT)
-      pass
+        self.H0_RH = self._h0_rh_x2
+        self.H1_RH = self._h1_rh_x2
+        self.H0_T0_OUT = self._h0_t0_out
+        self.H1_T0_OUT = self._h1_t0_out
+        # self._t0_deg_c_x8_lsbyte = ROUnaryStruct(_T0_DEGC_X8, "<b")
+        # self._t1_deg_c_x8_lsbyte = ROUnaryStruct(_T1_DEGC_X8, "<b")
+        # self._t1_t0_deg_c_x8_msbits = ROBits(4, _T1_T0_MSB, 0)
+
+        # self._h0_rh_x2 = ROUnaryStruct(_H0_RH_X2, "<b")
+        # self._h1_rh_x2 = ROUnaryStruct(_H1_RH_X2, "<b")
+
+        # self._h0_t0_out = ROUnaryStruct(_H0_T0_OUT, "<h")
+        # self._h1_t0_out = ROUnaryStruct(_H1_T1_OUT, "<h")
+
+        # to_out = ROUnaryStruct(_T0_OUT, "<h")
+        # t1_out = ROUnaryStruct(_T1_OUT, "<h")
+
+    #   _T0_DEGC_X8 = const(0x32|0x80)   #First byte of T0, T1 calibration values
+    #   _T1_T0_MSB = const(0x35|0x80)    #Top 2 bits of T0 and T1 (each are 10 bits)
+    #   # TO, T1 have to be assembled
+    #   self._T0 = 0
+    #   self._T1 = 0
+    #   self._T1 = (buffer[0] & 0b1100)
+    #   self._T1 <<= 6
+    #   self._T0 = (buffer[0] & 0b0011)
+    #   self._T0 <<= 8
+
+    #   t0_degc_x8_l.read(buffer, 2)
+    #   #  Or self._T1[0:7] on to the above to make a full 10 bits
+    #   self._T0 |= buffer[0]
+    #   self._T0 >>= 3 #// divide by 8 (as documented)
+    #   self._T1 |= buffer[1]
+    #   self._T1 >>= 3
+
+
 
     def _correct_humidity(self):
       pass
