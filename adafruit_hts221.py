@@ -202,14 +202,15 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
     @property
     def humidity(self):
         """The current humidity measurement in hPa"""
-        # hum = ((H1) - (H0)) / 2.0; // remove x2 multiple
+        hum = ((self.h1_rh) - (self.h0_rh)) / 2.0  # remove x2 multiple
 
-        # # Calculate humidity in decimal of grade centigrades i.e. 15.0 = 150.
-        # h_temp = (((self._raw_humidity - H0_T0_OUT) * hum) /
-        #         (H1_T0_OUT - H0_T0_OUT)
-        # hum = H0 / 2.0    # remove x2 multiple
-        # corrected_humidity = (hum + h_temp) # provide signed % measurement unit
-        return self._raw_humidity
+        # Calculate humidity in decimal of grade centigrades i.e. 15.0 = 150.
+        h_temp = ((self._raw_humidity - self.h0_out) * hum) / (
+            self.h1_out - self.h0_out
+        )
+
+        hum = self.h0_rh / 2.0  # remove x2 multiple
+        return hum + h_temp  # provide signed % measurement unit
 
     @property
     def temperature(self):
