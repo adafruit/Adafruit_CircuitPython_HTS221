@@ -189,24 +189,9 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
     def _correct_humidity(self):
         pass
 
-    # hum = ((int16_t)(H1) - (int16_t)(H0)) / 2.0; // remove x2 multiple
-
-    # // Calculate humidity in decimal of grade centigrades i.e. 15.0 = 150.
-    # h_temp = (float)(((int16_t)raw_humidity - (int16_t)H0_T0_OUT) * hum) /
-    #         (float)((int16_t)H1_T0_OUT - (int16_t)H0_T0_OUT);
-    # hum = (float)((int16_t)H0) / 2.0;    // remove x2 multiple
-    # corrected_humidity = (hum + h_temp); // provide signed % measurement unit
     def _correct_temp(self):
         pass
 
-    # corrected_temp =
-    # (float)
-    #     // measured temp(LSB) - offset(LSB) * (calibration measurement delta)
-    #     (float)((int16_t)raw_temperature - (int16_t)T0_OUT) *
-    #     (float)((int16_t)T1 - (int16_t)T0) / // divided by..
-    #     // Calibration LSB delta + Calibration offset?
-    #     (float)((int16_t)T1_OUT - (int16_t)T0_OUT) +
-    # (int16_t)T0;
     def boot(self):
         """Reset the sensor, restoring all configuration registers to their defaults"""
         self._boot = True
@@ -217,17 +202,22 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
     @property
     def humidity(self):
         """The current humidity measurement in hPa"""
-        raw = self._raw_humidity
+        # hum = ((H1) - (H0)) / 2.0; // remove x2 multiple
 
-        if raw & (1 << 23) != 0:
-            raw = raw - (1 << 24)
-        return raw / 4096.0
+        # # Calculate humidity in decimal of grade centigrades i.e. 15.0 = 150.
+        # h_temp = (((self._raw_humidity - H0_T0_OUT) * hum) /
+        #         (H1_T0_OUT - H0_T0_OUT)
+        # hum = H0 / 2.0    # remove x2 multiple
+        # corrected_humidity = (hum + h_temp) # provide signed % measurement unit
+        return self._raw_humidity
 
     @property
     def temperature(self):
         """The current temperature measurement in degrees C"""
-        raw_temperature = self._raw_temperature
-        return (raw_temperature / 480) + 42.5
+        temp = (self._raw_temperature - self.t0_out) * (self.t1_deg_c - self.t0_deg_c)
+        temp /= (self.t1_out - self.t0_out) + self.t0_deg_c
+        return temp
+        # Calibration LSB delta + Calibration offset?
 
     @property
     def data_rate(self):
