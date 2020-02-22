@@ -174,25 +174,18 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
         self.data_rate = Rate.RATE_12_5_HZ  # pylint:disable=no-member
 
         t1_t0_msbs = self._t1_t0_deg_c_x8_msbits
-        self.t0_deg_c = self._t0_deg_c_x8_lsbyte
-        self.t0_deg_c |= (t1_t0_msbs & 0b0011) << 8
+        self.tmp_calib_0_deg_c = self._t0_deg_c_x8_lsbyte
+        self.tmp_calib_0_deg_c |= (t1_t0_msbs & 0b0011) << 8
 
-        self.t1_deg_c = self._t1_deg_c_x8_lsbyte
-        self.t1_deg_c |= (t1_t0_msbs & 0b1100) << 6
+        self.tmp_calib_1_deg_c = self._t1_deg_c_x8_lsbyte
+        self.tmp_calib_1_deg_c |= (t1_t0_msbs & 0b1100) << 6
 
 
-        ################
-        print("before shift: self.t1_deg_c", self.t1_deg_c)
-        self.t1_deg_c >>= 3
-        print("after shift: self.t1_deg_c", self.t1_deg_c)
+        self.tmp_calib_1_deg_c >>= 3
+        self.tmp_calib_0_deg_c >>= 3
 
-        print("before shift: self.t0_deg_c", self.t0_deg_c)
-        self.t0_deg_c >>= 3
-        print("after shift: self.t0_deg_c", self.t0_deg_c)
-        ###########
-
-        self.t0_out = self._t0_out
-        self.t1_out = self._t1_out
+        self.tmp_calib_0_lsb = self._t0_out
+        self.tmp_calib_1_lsb = self._t1_out
         self.h0_rh = self._h0_rh_x2
         self.h1_rh = self._h1_rh_x2
         self.h0_out = self._h0_t0_out
@@ -221,11 +214,25 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
     @property
     def temperature(self):
         """The current temperature measurement in degrees C"""
-        #pylint:disable=line-too-long
-        t_out = 0x10B
-        # T_out = self._raw_temperature
-        division = (t_out - self.t0_out) * (self.t1_deg_c- self.t0_deg_c) / (self.t1_out - self.t0_out)
-        temp = division + self.t0_deg_c
+        meas_temp_lsb = 0x10B
+
+        delta_tmp_deg_c = (self.tmp_calib_1_deg_c - self.tmp_calib_0_deg_c)
+        tmp_lsb_offset = (meas_temp_lsb - self.tmp_calib_0_lsb)
+
+        meas_tmp_lsb_without_offset = (meas_temp_lsb - self.tmp_calib_0_lsb)
+        delta_tmp_lsb = (self.tmp_calib_1_lsb - self.tmp_calib_0_lsb)
+
+        numerator = tmp_lsb_offset * delta_tmp_deg_c
+
+        denominator = delta_tmp_lsb
+
+        division = numerator / denominator
+
+        meas_temp_deg_c_offset = self.tmp_calib_0_deg_c
+        correction_lsb_value = delta_tmp_deg_c / delta_tmp_lsb
+        adjusted_tmp = (meas_tmp_lsb_without_offset * correction_lsb_value) + meas_temp_deg_c_offset
+        temp = adjusted_tmp
+        temp = division + self.tmp_calib_0_deg_c
         # raw temp = 0x10B
         # SmartEverntying: Temperature: 25.52 celsius
         # STMDUINO:        Temperature: 24.99 celsius
