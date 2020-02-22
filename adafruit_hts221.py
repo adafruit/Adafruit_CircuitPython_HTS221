@@ -176,8 +176,20 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
         t1_t0_msbs = self._t1_t0_deg_c_x8_msbits
         self.t0_deg_c = self._t0_deg_c_x8_lsbyte
         self.t0_deg_c |= (t1_t0_msbs & 0b0011) << 8
+
         self.t1_deg_c = self._t1_deg_c_x8_lsbyte
         self.t1_deg_c |= (t1_t0_msbs & 0b1100) << 6
+
+
+        ################
+        print("before shift: self.t1_deg_c", self.t1_deg_c)
+        self.t1_deg_c >>= 3
+        print("after shift: self.t1_deg_c", self.t1_deg_c)
+
+        print("before shift: self.t0_deg_c", self.t0_deg_c)
+        self.t0_deg_c >>= 3
+        print("after shift: self.t0_deg_c", self.t0_deg_c)
+        ###########
 
         self.t0_out = self._t0_out
         self.t1_out = self._t1_out
@@ -185,12 +197,6 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
         self.h1_rh = self._h1_rh_x2
         self.h0_out = self._h0_t0_out
         self.h1_out = self._h1_t0_out
-
-    def _correct_humidity(self):
-        pass
-
-    def _correct_temp(self):
-        pass
 
     def boot(self):
         """Reset the sensor, restoring all configuration registers to their defaults"""
@@ -215,10 +221,16 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
     @property
     def temperature(self):
         """The current temperature measurement in degrees C"""
-        temp = (self._raw_temperature - self.t0_out) * (self.t1_deg_c - self.t0_deg_c)
-        temp /= (self.t1_out - self.t0_out) + self.t0_deg_c
+        #pylint:disable=line-too-long
+        t_out = 0x10B
+        # T_out = self._raw_temperature
+        division = (t_out - self.t0_out) * (self.t1_deg_c- self.t0_deg_c) / (self.t1_out - self.t0_out)
+        temp = division + self.t0_deg_c
+        # raw temp = 0x10B
+        # SmartEverntying: Temperature: 25.52 celsius
+        # STMDUINO:        Temperature: 24.99 celsius
+        # Us:              Temperature: 24.99 celcius
         return temp
-        # Calibration LSB delta + Calibration offset?
 
     @property
     def data_rate(self):
