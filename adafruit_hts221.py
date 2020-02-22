@@ -147,7 +147,7 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
     _data_rate = RWBits(2, _CTRL_REG1, 0)
 
     _raw_temperature = ROUnaryStruct(_TEMP_OUT_L, "<h")
-    _raw_humidity = ROUnaryStruct(_HUMIDITY_OUT_L, "<b")
+    _raw_humidity = ROUnaryStruct(_HUMIDITY_OUT_L, "<h")
 
     # humidity calibration consts
     _t0_deg_c_x8_lsbyte = ROBits(8, _T0_DEGC_X8, 0)
@@ -163,6 +163,9 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
     _h0_t0_out = ROUnaryStruct(_H0_T0_OUT, "<h")
     _h1_t0_out = ROUnaryStruct(_H1_T1_OUT, "<h")
 
+
+
+
     def __init__(self, i2c_bus, address=_HTS221_DEFAULT_ADDRESS):
         self.i2c_device = i2cdevice.I2CDevice(i2c_bus, address)
         if not self._chip_id in [_HTS221_CHIP_ID]:
@@ -174,22 +177,26 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
         self.data_rate = Rate.RATE_12_5_HZ  # pylint:disable=no-member
 
         t1_t0_msbs = self._t1_t0_deg_c_x8_msbits
-        self.tmp_calib_0_deg_c = self._t0_deg_c_x8_lsbyte
-        self.tmp_calib_0_deg_c |= (t1_t0_msbs & 0b0011) << 8
+        self.calibrated_value_0 = self._t0_deg_c_x8_lsbyte
+        self.calibrated_value_0 |= (t1_t0_msbs & 0b0011) << 8
 
-        self.tmp_calib_1_deg_c = self._t1_deg_c_x8_lsbyte
-        self.tmp_calib_1_deg_c |= (t1_t0_msbs & 0b1100) << 6
+        self.calibrated_value_1 = self._t1_deg_c_x8_lsbyte
+        self.calibrated_value_1 |= (t1_t0_msbs & 0b1100) << 6
 
+        self.calibrated_value_0 >>= 3
+        self.calibrated_value_1 >>= 3
 
-        self.tmp_calib_1_deg_c >>= 3
-        self.tmp_calib_0_deg_c >>= 3
-
-        self.tmp_calib_0_lsb = self._t0_out
-        self.tmp_calib_1_lsb = self._t1_out
+        self.calibrated_measurement_0 = self._t0_out
+        self.calibrated_measurement_1 = self._t1_out
         self.h0_rh = self._h0_rh_x2
+        self.h0_rh >>= 1
+
         self.h1_rh = self._h1_rh_x2
+        self.h1_rh >>= 1
+
         self.h0_out = self._h0_t0_out
         self.h1_out = self._h1_t0_out
+
 
     def boot(self):
         """Reset the sensor, restoring all configuration registers to their defaults"""
@@ -201,43 +208,31 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
     @property
     def humidity(self):
         """The current humidity measurement in hPa"""
-        hum = ((self.h1_rh) - (self.h0_rh)) / 2.0  # remove x2 multiple
+        adjusted_humidity = (self._raw_humidity - self.h0_out) * (self.h1_rh - self.h0_rh) / (self.h1_out - self.h0_out)  +  self.h0_rh
+        return adjusted_humidity
 
-        # Calculate humidity in decimal of grade centigrades i.e. 15.0 = 150.
-        h_temp = ((self._raw_humidity - self.h0_out) * hum) / (
-            self.h1_out - self.h0_out
-        )
-
-        hum = self.h0_rh / 2.0  # remove x2 multiple
-        return hum + h_temp  # provide signed % measurement unit
 
     @property
     def temperature(self):
         """The current temperature measurement in degrees C"""
-        meas_temp_lsb = 0x10B
 
-        delta_tmp_deg_c = (self.tmp_calib_1_deg_c - self.tmp_calib_0_deg_c)
-        tmp_lsb_offset = (meas_temp_lsb - self.tmp_calib_0_lsb)
+        calibrated_value_delta = self.calibrated_value_1 - self.calibrated_value_0
+        calibrated_measurement_delta = (
+            self.calibrated_measurement_1 - self.calibrated_measurement_0
+        )
 
-        meas_tmp_lsb_without_offset = (meas_temp_lsb - self.tmp_calib_0_lsb)
-        delta_tmp_lsb = (self.tmp_calib_1_lsb - self.tmp_calib_0_lsb)
+        calibration_value_offset = self.calibrated_value_0
+        calibrated_measurement_offset = self.calibrated_measurement_0
 
-        numerator = tmp_lsb_offset * delta_tmp_deg_c
+        zeroed_measured_temp = self._raw_temperature - calibrated_measurement_offset
 
-        denominator = delta_tmp_lsb
+        correction_factor = calibrated_value_delta / calibrated_measurement_delta
 
-        division = numerator / denominator
+        adjusted_temp = (
+            zeroed_measured_temp * correction_factor
+        ) + calibration_value_offset
 
-        meas_temp_deg_c_offset = self.tmp_calib_0_deg_c
-        correction_lsb_value = delta_tmp_deg_c / delta_tmp_lsb
-        adjusted_tmp = (meas_tmp_lsb_without_offset * correction_lsb_value) + meas_temp_deg_c_offset
-        temp = adjusted_tmp
-        temp = division + self.tmp_calib_0_deg_c
-        # raw temp = 0x10B
-        # SmartEverntying: Temperature: 25.52 celsius
-        # STMDUINO:        Temperature: 24.99 celsius
-        # Us:              Temperature: 24.99 celcius
-        return temp
+        return adjusted_temp
 
     @property
     def data_rate(self):
