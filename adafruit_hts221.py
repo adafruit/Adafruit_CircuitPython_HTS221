@@ -266,7 +266,6 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
         """Returns true if a new temperature measurement is available to be read"""
         return self._temperature_status_bit
 
-
     def take_measurements(self):
         """Update the value of ``pressure`` and ``temperature`` by taking a single measurement.
             Only meaningful if ``data_rate`` is set to ``ONE_SHOT``"""
