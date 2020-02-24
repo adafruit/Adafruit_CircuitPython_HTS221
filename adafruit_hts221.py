@@ -49,14 +49,14 @@ from micropython import const
 import adafruit_bus_device.i2c_device as i2cdevice
 from adafruit_register.i2c_struct import ROUnaryStruct
 from adafruit_register.i2c_bits import RWBits, ROBits
-from adafruit_register.i2c_bit import RWBit
+from adafruit_register.i2c_bit import RWBit, ROBit
 
 _WHO_AM_I = const(0x0F)
 
 _CTRL_REG1 = const(0x20)
 _CTRL_REG2 = const(0x21)
 _CTRL_REG3 = const(0x22)
-
+_STATUS_REG = const(0x27)
 # some addresses are anded to set the  top bit so that multi-byte reads will work
 _HUMIDITY_OUT_L = const(0x28 | 0x80)  # Humidity output register (LSByte)
 _TEMP_OUT_L = const(0x2A | 0x80)  # Temperature output register (LSByte)
@@ -122,7 +122,7 @@ class Rate(CV):
 
 Rate.add_values(
     (
-        ("RATE_ONE_SHOT", 0, 0, None),
+        ("ONE_SHOT", 0, 0, None),
         ("RATE_1_HZ", 1, 1, None),
         ("RATE_7_HZ", 2, 7, None),
         ("RATE_12_5_HZ", 3, 12.5, None),
@@ -145,7 +145,9 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
     enabled = RWBit(_CTRL_REG1, 7)
     """Controls the power down state of the sensor. Setting to `False` will shut the sensor down"""
     _data_rate = RWBits(2, _CTRL_REG1, 0)
-
+    _one_shot_bit = RWBit(_CTRL_REG2, 0)
+    _temperature_status_bit = ROBit(_STATUS_REG, 0)
+    _humidity_status_bit = ROBit(_STATUS_REG, 1)
     _raw_temperature = ROUnaryStruct(_TEMP_OUT_L, "<h")
     _raw_humidity = ROUnaryStruct(_HUMIDITY_OUT_L, "<h")
 
@@ -242,10 +244,9 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
     @property
     def data_rate(self):
         """The rate at which the sensor measures ``humidity`` and ``temperature``. ``data_rate``
-        shouldbe set to one of the values of ``adafruit_lps2x.DataRate``. Note that setting
-        ``data_rate``to ``Rate.ONE_SHOT`` places the sensor into a low-power shutdown mode where
-        measurements toupdate ``humidity`` and ``temperature`` are only taken when
-        ``take_measurement`` is called."""
+        should be set to one of the values of ``adafruit_hts221.Rate``. Note that setting
+        ``data_rate`` to ``Rate.ONE_SHOT`` will cause  ``humidity`` and ``temperature`` measurements
+        to only update when ``take_measurements`` is called."""
         return self._data_rate
 
     @data_rate.setter
@@ -254,3 +255,21 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
             raise AttributeError("data_rate must be a `Rate`")
 
         self._data_rate = value
+
+    @property
+    def humidity_data_ready(self):
+        """Returns true if a new humidity measurement is available to be read"""
+        return self._humidity_status_bit
+
+    @property
+    def temperature_data_ready(self):
+        """Returns true if a new temperature measurement is available to be read"""
+        return self._temperature_status_bit
+
+
+    def take_measurements(self):
+        """Update the value of ``pressure`` and ``temperature`` by taking a single measurement.
+            Only meaningful if ``data_rate`` is set to ``ONE_SHOT``"""
+        self._one_shot_bit = True
+        while self._one_shot_bit:
+            pass
