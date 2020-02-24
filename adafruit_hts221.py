@@ -163,9 +163,6 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
     _h0_t0_out = ROUnaryStruct(_H0_T0_OUT, "<h")
     _h1_t0_out = ROUnaryStruct(_H1_T1_OUT, "<h")
 
-
-
-
     def __init__(self, i2c_bus, address=_HTS221_DEFAULT_ADDRESS):
         self.i2c_device = i2cdevice.I2CDevice(i2c_bus, address)
         if not self._chip_id in [_HTS221_CHIP_ID]:
@@ -177,26 +174,26 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
         self.data_rate = Rate.RATE_12_5_HZ  # pylint:disable=no-member
 
         t1_t0_msbs = self._t1_t0_deg_c_x8_msbits
-        self.calibrated_value_0 = self._t0_deg_c_x8_lsbyte
-        self.calibrated_value_0 |= (t1_t0_msbs & 0b0011) << 8
+        self.calib_temp_value_0 = self._t0_deg_c_x8_lsbyte
+        self.calib_temp_value_0 |= (t1_t0_msbs & 0b0011) << 8
 
         self.calibrated_value_1 = self._t1_deg_c_x8_lsbyte
         self.calibrated_value_1 |= (t1_t0_msbs & 0b1100) << 6
 
-        self.calibrated_value_0 >>= 3
-        self.calibrated_value_1 >>= 3
+        self.calib_temp_value_0 >>= 3  # divide by 8 to remove x8
+        self.calibrated_value_1 >>= 3  # divide by 8 to remove x8
 
-        self.calibrated_measurement_0 = self._t0_out
-        self.calibrated_measurement_1 = self._t1_out
-        self.h0_rh = self._h0_rh_x2
-        self.h0_rh >>= 1
+        self.calib_temp_meas_0 = self._t0_out
+        self.calib_temp_meas_1 = self._t1_out
 
-        self.h1_rh = self._h1_rh_x2
-        self.h1_rh >>= 1
+        self.calib_hum_value_0 = self._h0_rh_x2
+        self.calib_hum_value_0 >>= 1  # divide by 2 to remove x2
 
-        self.h0_out = self._h0_t0_out
-        self.h1_out = self._h1_t0_out
+        self.calib_hum_value_1 = self._h1_rh_x2
+        self.calib_hum_value_1 >>= 1  # divide by 2 to remove x2
 
+        self.calib_hum_meas_0 = self._h0_t0_out
+        self.calib_hum_meas_1 = self._h1_t0_out
 
     def boot(self):
         """Reset the sensor, restoring all configuration registers to their defaults"""
@@ -208,22 +205,30 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
     @property
     def humidity(self):
         """The current humidity measurement in hPa"""
-        adjusted_humidity = (self._raw_humidity - self.h0_out) * (self.h1_rh - self.h0_rh) / (self.h1_out - self.h0_out)  +  self.h0_rh
-        return adjusted_humidity
+        calibrated_value_delta = self.calib_hum_value_1 - self.calib_hum_value_0
+        calibrated_measurement_delta = self.calib_hum_meas_1 - self.calib_hum_meas_0
 
+        calibration_value_offset = self.calib_hum_value_0
+        calibrated_measurement_offset = self.calib_hum_meas_0
+        zeroed_measured_humidity = self._raw_humidity - calibrated_measurement_offset
+
+        correction_factor = calibrated_value_delta / calibrated_measurement_delta
+
+        adjusted_humidity = (
+            zeroed_measured_humidity * correction_factor + calibration_value_offset
+        )
+
+        return adjusted_humidity
 
     @property
     def temperature(self):
         """The current temperature measurement in degrees C"""
 
-        calibrated_value_delta = self.calibrated_value_1 - self.calibrated_value_0
-        calibrated_measurement_delta = (
-            self.calibrated_measurement_1 - self.calibrated_measurement_0
-        )
+        calibrated_value_delta = self.calibrated_value_1 - self.calib_temp_value_0
+        calibrated_measurement_delta = self.calib_temp_meas_1 - self.calib_temp_meas_0
 
-        calibration_value_offset = self.calibrated_value_0
-        calibrated_measurement_offset = self.calibrated_measurement_0
-
+        calibration_value_offset = self.calib_temp_value_0
+        calibrated_measurement_offset = self.calib_temp_meas_0
         zeroed_measured_temp = self._raw_temperature - calibrated_measurement_offset
 
         correction_factor = calibrated_value_delta / calibrated_measurement_delta
