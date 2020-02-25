@@ -6,6 +6,7 @@ import adafruit_hts221
 i2c = busio.I2C(board.SCL, board.SDA)
 hts = adafruit_hts221.HTS221(i2c)
 while True:
-    print("Humidity: %.2f percent rH" % hts.humidity)
+    print("Relative Humidity: %.2f %% rH" % hts.relative_humidity)
     print("Temperature: %.2f C" % hts.temperature)
+    print("")
     time.sleep(1)
