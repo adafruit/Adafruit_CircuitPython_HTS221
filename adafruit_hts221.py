@@ -1,6 +1,6 @@
-# The MIT License (MIT)
+# SPDX-FileCopyrightText: Copyright (c) 2020 Bryan Siepert for Adafruit Industries
 #
-# Copyright (c) 2020 Bryan Siepert for Adafruit Industries
+# SPDX-License-Identifier: MIT
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -61,15 +61,15 @@ _STATUS_REG = const(0x27)
 _HUMIDITY_OUT_L = const(0x28 | 0x80)  # Humidity output register (LSByte)
 _TEMP_OUT_L = const(0x2A | 0x80)  # Temperature output register (LSByte)
 
-_H0_RH_X2 = const(0x30)  # Humididy calibration LSB values
-_H1_RH_X2 = const(0x31)  # Humididy calibration LSB values
+_H0_RH_X2 = const(0x30)  # Humidity calibration LSB values
+_H1_RH_X2 = const(0x31)  # Humidity calibration LSB values
 
 _T0_DEGC_X8 = const(0x32)  # First byte of T0, T1 calibration values
 _T1_DEGC_X8 = const(0x33)  # First byte of T0, T1 calibration values
 _T1_T0_MSB = const(0x35)  # Top 2 bits of T0 and T1 (each are 10 bits)
 
-_H0_T0_OUT = const(0x36 | 0x80)  # Humididy calibration Time 0 value
-_H1_T1_OUT = const(0x3A | 0x80)  # Humididy calibration Time 1 value
+_H0_T0_OUT = const(0x36 | 0x80)  # Humidity calibration Time 0 value
+_H1_T1_OUT = const(0x3A | 0x80)  # Humidity calibration Time 1 value
 
 _T0_OUT = const(0x3C | 0x80)  # T0_OUT LSByte
 _T1_OUT = const(0x3E | 0x80)  # T1_OUT LSByte
@@ -83,7 +83,7 @@ class CV:
 
     @classmethod
     def add_values(cls, value_tuples):
-        "creates CV entires"
+        "creates CV entries"
         cls.string = {}
         cls.lsb = {}
 
@@ -162,7 +162,8 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
     _h0_t0_out = ROUnaryStruct(_H0_T0_OUT, "<h")
     _h1_t0_out = ROUnaryStruct(_H1_T1_OUT, "<h")
 
-    def __init__(self, i2c_bus):
+    def __init__(self, i2c_bus, debug=False):
+        self._debug = debug
         self.i2c_device = i2cdevice.I2CDevice(i2c_bus, _HTS221_DEFAULT_ADDRESS)
         if not self._chip_id in [_HTS221_CHIP_ID]:
             raise RuntimeError(
@@ -193,6 +194,30 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
 
         self.calib_hum_meas_0 = self._h0_t0_out
         self.calib_hum_meas_1 = self._h1_t0_out
+        self._dbg("Humidity calibration constants:")
+        self._dbg("measurement 0:", self.calib_hum_meas_0)
+        self._dbg("measurement 1:", self.calib_hum_meas_1)
+        self._dbg("value 0:", self.calib_hum_value_0)
+        self._dbg("value 1:", self.calib_hum_value_1)
+
+        self._dbg("")
+        calibrated_value_delta = self.calib_hum_value_1 - self.calib_hum_value_0
+        calibrated_measurement_delta = self.calib_hum_meas_1 - self.calib_hum_meas_0
+        self._dbg("measurement delta:", calibrated_measurement_delta)
+        self._dbg("value delta:", calibrated_value_delta)
+        self._dbg("")
+        calibration_value_offset = self.calib_hum_value_0
+        calibrated_measurement_offset = self.calib_hum_meas_0
+        self._dbg("value offset:", calibration_value_offset)
+        self._dbg("measurement offset:", calibrated_measurement_offset)
+        self._dbg("")
+
+        correction_factor = calibrated_value_delta / calibrated_measurement_delta
+        self._dbg(
+            "correction factor( %.3f) = value delta ( %.3f ) / measurement delta ( %.3f )"
+            % (correction_factor, calibrated_value_delta, calibrated_measurement_delta)
+        )
+        self._dbg("")
 
     # This is the closest thing to a software reset. It re-loads the calibration values from flash
     def _boot(self):
@@ -204,19 +229,35 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
     @property
     def relative_humidity(self):
         """The current relative humidity measurement in %rH"""
+        raw_humidity = self._raw_humidity
+        self._dbg("raw humidity:", raw_humidity)
         calibrated_value_delta = self.calib_hum_value_1 - self.calib_hum_value_0
         calibrated_measurement_delta = self.calib_hum_meas_1 - self.calib_hum_meas_0
 
         calibration_value_offset = self.calib_hum_value_0
         calibrated_measurement_offset = self.calib_hum_meas_0
-        zeroed_measured_humidity = self._raw_humidity - calibrated_measurement_offset
+
+        zeroed_measured_humidity = raw_humidity - calibrated_measurement_offset
+
+        self._dbg(
+            "zeroed humidity (-meas offset):", zeroed_measured_humidity,
+        )
 
         correction_factor = calibrated_value_delta / calibrated_measurement_delta
 
         adjusted_humidity = (
             zeroed_measured_humidity * correction_factor + calibration_value_offset
         )
-
+        self._dbg(
+            "real hum ( %.3f) = ( zeroed meas ( %.3f ) * correction ( %.3f ) + val offset ( %.3f ))"
+            % (
+                adjusted_humidity,
+                zeroed_measured_humidity,
+                correction_factor,
+                calibration_value_offset,
+            )
+        )
+        self._dbg("")
         return adjusted_humidity
 
     @property
@@ -230,6 +271,7 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
         calibrated_measurement_offset = self.calib_temp_meas_0
         zeroed_measured_temp = self._raw_temperature - calibrated_measurement_offset
 
+        correction_factor = calibrated_value_delta / calibrated_measurement_delta
         correction_factor = calibrated_value_delta / calibrated_measurement_delta
 
         adjusted_temp = (
@@ -269,3 +311,11 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
         self._one_shot_bit = True
         while self._one_shot_bit:
             pass
+
+    def _dbg(self, message, value=None):
+        if self._debug:
+            if value:
+                outstr = "\tDEBUG :: {0} {1}".format(message, value)
+            else:
+                outstr = "\tDEBUG :: {0}".format(message)
+            print(outstr)
