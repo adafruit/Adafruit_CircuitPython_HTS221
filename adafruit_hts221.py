@@ -206,16 +206,16 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
         self._dbg("measurement delta:", calibrated_measurement_delta)
         self._dbg("value delta:", calibrated_value_delta)
         self._dbg("")
-        calibration_value_offset = self.calib_hum_value_0
-        calibrated_measurement_offset = self.calib_hum_meas_0
-        self._dbg("value offset:", calibration_value_offset)
-        self._dbg("measurement offset:", calibrated_measurement_offset)
+        self._hum_value_offset = self.calib_hum_value_0
+        self._hum_meas_offset = self.calib_hum_meas_0
+        self._dbg("value offset:", self._hum_value_offset)
+        self._dbg("measurement offset:", self._hum_meas_offset)
         self._dbg("")
 
-        correction_factor = calibrated_value_delta / calibrated_measurement_delta
+        self._hum_scalar = calibrated_value_delta / calibrated_measurement_delta
         self._dbg(
-            "correction factor( %.3f) = value delta ( %.3f ) / measurement delta ( %.3f )"
-            % (correction_factor, calibrated_value_delta, calibrated_measurement_delta)
+            "correction scalar( %.3f) = value delta ( %.3f ) / measurement delta ( %.3f )"
+            % (self._hum_scalar, calibrated_value_delta, calibrated_measurement_delta)
         )
         self._dbg("")
 
@@ -231,31 +231,20 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
         """The current relative humidity measurement in %rH"""
         raw_humidity = self._raw_humidity
         self._dbg("raw humidity:", raw_humidity)
-        calibrated_value_delta = self.calib_hum_value_1 - self.calib_hum_value_0
-        calibrated_measurement_delta = self.calib_hum_meas_1 - self.calib_hum_meas_0
 
-        calibration_value_offset = self.calib_hum_value_0
-        calibrated_measurement_offset = self.calib_hum_meas_0
-
-        zeroed_measured_humidity = raw_humidity - calibrated_measurement_offset
-
+        zeroed_measured_humidity = raw_humidity - self._hum_meas_offset
         self._dbg(
             "zeroed humidity (-meas offset):", zeroed_measured_humidity,
         )
 
-        correction_factor = calibrated_value_delta / calibrated_measurement_delta
-
         adjusted_humidity = (
-            zeroed_measured_humidity * correction_factor + calibration_value_offset
+            zeroed_measured_humidity * self._hum_scalar + self._hum_value_offset
         )
+        self._dbg("")
+        self._dbg("real hum ( %.3f) = " % (adjusted_humidity))
         self._dbg(
-            "real hum ( %.3f) = ( zeroed meas ( %.3f ) * correction ( %.3f ) + val offset ( %.3f ))"
-            % (
-                adjusted_humidity,
-                zeroed_measured_humidity,
-                correction_factor,
-                calibration_value_offset,
-            )
+            "( zeroed meas ( %.3f ) * calibration scalar( %.3f ) + val offset ( %.3f ))"
+            % (zeroed_measured_humidity, self._hum_scalar, self._hum_value_offset,)
         )
         self._dbg("")
         return adjusted_humidity
