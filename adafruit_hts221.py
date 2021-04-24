@@ -15,7 +15,8 @@ Implementation Notes
 
 **Hardware:**
 
-* `HTS221 Breakout <https://www.adafruit.com/products/4535>`_
+* `Adafruit HTS221 - Temperature & Humidity
+  Sensor Breakout Board <https://www.adafruit.com/products/4535>`_
 
 **Software and Dependencies:**
  * Adafruit CircuitPython firmware for the supported boards:
@@ -65,7 +66,7 @@ class CV:
 
     @classmethod
     def add_values(cls, value_tuples):
-        "creates CV entires"
+        """creates CV entries"""
         cls.string = {}
         cls.lsb = {}
 
@@ -77,12 +78,12 @@ class CV:
 
     @classmethod
     def is_valid(cls, value):
-        "Returns true if the given value is a member of the CV"
+        """Returns true if the given value is a member of the CV"""
         return value in cls.string
 
 
 class Rate(CV):
-    """Options for ``data_rate``
+    """Options for :attr:`data_rate`
 
     +-----------------------+------------------------------------------------------------------+
     | Rate                  | Description                                                      |
@@ -115,7 +116,32 @@ Rate.add_values(
 class HTS221:  # pylint: disable=too-many-instance-attributes
     """Library for the ST HTS221 Humidity and Temperature Sensor
 
-    :param ~busio.I2C i2c_bus: The I2C bus the HTS221HB is connected to.
+    :param ~busio.I2C i2c_bus: The I2C bus the HTS221 is connected to
+
+
+    **Quickstart: Importing and using the HTS221**
+
+        Here is an example of using the :class:`HTS221` class.
+        First you will need to import the libraries to use the sensor
+
+        .. code-block:: python
+
+            import board
+            import adafruit_hts221
+
+        Once this is done you can define your `board.I2C` object and define your sensor object
+
+        .. code-block:: python
+
+            i2c = board.I2C()  # uses board.SCL and board.SDA
+            hts = adafruit_hts221.HTS221(i2c)
+
+        Now you have access to the :attr:`temperature` and :attr:`relative_humidity` attributes
+
+        .. code-block:: python
+
+            temperature = hts.temperature
+            relative_humidity = hts.relative_humidity
 
     """
 
@@ -203,7 +229,7 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
 
     @property
     def temperature(self):
-        """The current temperature measurement in degrees C"""
+        """The current temperature measurement in degrees Celsius"""
 
         calibrated_value_delta = self.calibrated_value_1 - self.calib_temp_value_0
         calibrated_measurement_delta = self.calib_temp_meas_1 - self.calib_temp_meas_0
@@ -222,10 +248,11 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
 
     @property
     def data_rate(self):
-        """The rate at which the sensor measures ``relative_humidity`` and ``temperature``.
-        ``data_rate`` should be set to one of the values of ``adafruit_hts221.Rate``. Note that
-        setting ``data_rate`` to ``Rate.ONE_SHOT`` will cause  ``relative_humidity`` and
-        ``temperature`` measurements to only update when ``take_measurements`` is called."""
+        """The rate at which the sensor measures :attr:`relative_humidity` and :attr:`temperature`.
+        :attr:`data_rate` should be set to one of the values of :class:`adafruit_hts221.Rate`.
+        Note that setting :attr:`data_rate` to ``Rate.ONE_SHOT`` will cause
+        :attr:`relative_humidity` and :attr:`temperature` measurements to only
+        update when :meth:`take_measurements` is called."""
         return self._data_rate
 
     @data_rate.setter
@@ -246,8 +273,8 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
         return self._temperature_status_bit
 
     def take_measurements(self):
-        """Update the value of ``relative_humidity`` and ``temperature`` by taking a single
-        measurement. Only meaningful if ``data_rate`` is set to ``ONE_SHOT``"""
+        """Update the value of :attr:`relative_humidity` and :attr:`temperature` by taking a single
+        measurement. Only meaningful if :attr:`data_rate` is set to ``ONE_SHOT``"""
         self._one_shot_bit = True
         while self._one_shot_bit:
             pass

@@ -6,3 +6,4 @@
 
 .. automodule:: adafruit_hts221
    :members:
+   :exclude-members: CV
