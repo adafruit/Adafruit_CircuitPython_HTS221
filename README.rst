@@ -60,10 +60,9 @@ Usage Example
 
     import time
     import board
-    import busio
     import adafruit_hts221
 
-    i2c = busio.I2C(board.SCL, board.SDA)
+    i2c = board.I2C()
     hts = adafruit_hts221.HTS221(i2c)
     while True:
         print("Relative Humidity: %.2f percent rH" % hts.relative_humidity)

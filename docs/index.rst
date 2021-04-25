@@ -23,11 +23,12 @@ Table of Contents
 .. toctree::
     :caption: Tutorials
 
+    Adafruit HTS221 - Temperature & Humidity Sensor Learning Guide <https://learn.adafruit.com/adafruit-hts221-temperature-humidity-sensor>
 
 .. toctree::
     :caption: Related Products
 
-    * `HTS221 Breakout <https://www.adafruit.com/products/4535>`_
+    Adafruit HTS221 - Temperature & Humidity Sensor Breakout Board <https://www.adafruit.com/products/4535>
 
 .. toctree::
     :caption: Other Links
