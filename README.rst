@@ -69,6 +69,11 @@ Usage Example
         print("Temperature: %.2f C" % hts.temperature)
         time.sleep(1)
 
+Documentation
+=============
+
+API documentation for this library can be found on `Read the Docs <https://circuitpython.readthedocs.io/projects/hts221/en/latest/>`_.
+
 Contributing
 ============
 
