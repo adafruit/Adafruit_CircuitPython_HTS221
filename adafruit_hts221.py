@@ -71,21 +71,18 @@ class CV:
     """struct helper"""
 
     @classmethod
-    def add_values(cls, value_tuples):
+    def add_values(cls, value_tuples: Sequence[Tuple[str, int]]) -> None:
         """creates CV entries"""
-        cls.string = {}
-        cls.lsb = {}
+        cls.contents = {}
 
         for value_tuple in value_tuples:
-            name, value, string, lsb = value_tuple
+            name, value = value_tuple
             setattr(cls, name, value)
-            cls.string[value] = string
-            cls.lsb[value] = lsb
 
     @classmethod
-    def is_valid(cls, value):
+    def is_valid(cls, value: int) -> bool:
         """Returns true if the given value is a member of the CV"""
-        return value in cls.string
+        return hasattr(cls, value)
 
 
 class Rate(CV):
@@ -111,10 +108,10 @@ class Rate(CV):
 
 Rate.add_values(
     (
-        ("ONE_SHOT", 0, 0, None),
-        ("RATE_1_HZ", 1, 1, None),
-        ("RATE_7_HZ", 2, 7, None),
-        ("RATE_12_5_HZ", 3, 12.5, None),
+        ("ONE_SHOT", 0),
+        ("RATE_1_HZ", 1),
+        ("RATE_7_HZ", 2),
+        ("RATE_12_5_HZ", 3),
     )
 )
 
