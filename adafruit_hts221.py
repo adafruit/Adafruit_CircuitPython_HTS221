@@ -34,6 +34,12 @@ from adafruit_register.i2c_struct import ROUnaryStruct
 from adafruit_register.i2c_bits import RWBits, ROBits
 from adafruit_register.i2c_bit import RWBit, ROBit
 
+try:
+    from typing import Sequence, Tuple
+    from busio import I2C
+except ImportError:
+    pass
+
 _WHO_AM_I = const(0x0F)
 
 _CTRL_REG1 = const(0x20)
@@ -170,7 +176,7 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
     _h0_t0_out = ROUnaryStruct(_H0_T0_OUT, "<h")
     _h1_t0_out = ROUnaryStruct(_H1_T1_OUT, "<h")
 
-    def __init__(self, i2c_bus):
+    def __init__(self, i2c_bus: I2C) -> None:
         self.i2c_device = i2cdevice.I2CDevice(i2c_bus, _HTS221_DEFAULT_ADDRESS)
         if not self._chip_id in [_HTS221_CHIP_ID]:
             raise RuntimeError(
@@ -203,14 +209,14 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
         self.calib_hum_meas_1 = self._h1_t0_out
 
     # This is the closest thing to a software reset. It re-loads the calibration values from flash
-    def _boot(self):
+    def _boot(self) -> None:
         self._boot_bit = True
         # wait for the reset to finish
         while self._boot_bit:
             pass
 
     @property
-    def relative_humidity(self):
+    def relative_humidity(self) -> float:
         """The current relative humidity measurement in %rH"""
         calibrated_value_delta = self.calib_hum_value_1 - self.calib_hum_value_0
         calibrated_measurement_delta = self.calib_hum_meas_1 - self.calib_hum_meas_0
@@ -228,7 +234,7 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
         return adjusted_humidity
 
     @property
-    def temperature(self):
+    def temperature(self) -> float:
         """The current temperature measurement in degrees Celsius"""
 
         calibrated_value_delta = self.calibrated_value_1 - self.calib_temp_value_0
@@ -247,7 +253,7 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
         return adjusted_temp
 
     @property
-    def data_rate(self):
+    def data_rate(self) -> int:
         """The rate at which the sensor measures :attr:`relative_humidity` and :attr:`temperature`.
         :attr:`data_rate` should be set to one of the values of :class:`adafruit_hts221.Rate`.
         Note that setting :attr:`data_rate` to ``Rate.ONE_SHOT`` will cause
@@ -256,23 +262,23 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
         return self._data_rate
 
     @data_rate.setter
-    def data_rate(self, value):
+    def data_rate(self, value: int) -> None:
         if not Rate.is_valid(value):
             raise AttributeError("data_rate must be a `Rate`")
 
         self._data_rate = value
 
     @property
-    def humidity_data_ready(self):
+    def humidity_data_ready(self) -> bool:
         """Returns true if a new relative humidity measurement is available to be read"""
         return self._humidity_status_bit
 
     @property
-    def temperature_data_ready(self):
+    def temperature_data_ready(self) -> bool:
         """Returns true if a new temperature measurement is available to be read"""
         return self._temperature_status_bit
 
-    def take_measurements(self):
+    def take_measurements(self) -> None:
         """Update the value of :attr:`relative_humidity` and :attr:`temperature` by taking a single
         measurement. Only meaningful if :attr:`data_rate` is set to ``ONE_SHOT``"""
         self._one_shot_bit = True
