@@ -76,12 +76,12 @@ class CV:
     ) -> None:
         """creates CV entries"""
         cls.contents = {}
-        cls.string = {}
+        cls.label = {}
 
         for value_tuple in value_tuples:
-            name, value, string = value_tuple
+            name, value, label = value_tuple
             setattr(cls, name, value)
-            cls.string[value] = string
+            cls.label[value] = label
 
     @classmethod
     def is_valid(cls, value: int) -> bool:
