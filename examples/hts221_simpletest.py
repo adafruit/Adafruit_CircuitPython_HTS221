@@ -8,8 +8,12 @@ import adafruit_hts221
 i2c = board.I2C()
 hts = adafruit_hts221.HTS221(i2c)
 
+data_rate = adafruit_hts221.Rate.label[hts.data_rate]
+print("Using data rate of: {:.1f} Hz".format(data_rate))
+print("")
+
 while True:
-    print("Relative Humidity: %.2f %% rH" % hts.relative_humidity)
-    print("Temperature: %.2f C" % hts.temperature)
+    print("Relative Humidity: {:.2f} % rH".format(hts.relative_humidity))
+    print("Temperature: {:.2f} C".format(hts.temperature))
     print("")
     time.sleep(1)
