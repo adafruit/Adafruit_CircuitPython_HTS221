@@ -35,7 +35,7 @@ from adafruit_register.i2c_bits import RWBits, ROBits
 from adafruit_register.i2c_bit import RWBit, ROBit
 
 try:
-    from typing import Sequence, Tuple
+    from typing import Union, Sequence, Tuple
     from busio import I2C
 except ImportError:
     pass
@@ -71,13 +71,17 @@ class CV:
     """struct helper"""
 
     @classmethod
-    def add_values(cls, value_tuples: Sequence[Tuple[str, int]]) -> None:
+    def add_values(
+        cls, value_tuples: Sequence[Tuple[str, int, Union[int, str]]]
+    ) -> None:
         """creates CV entries"""
         cls.contents = {}
+        cls.string = {}
 
         for value_tuple in value_tuples:
-            name, value = value_tuple
+            name, value, string = value_tuple
             setattr(cls, name, value)
+            cls.string[value] = string
 
     @classmethod
     def is_valid(cls, value: int) -> bool:
@@ -108,10 +112,13 @@ class Rate(CV):
 
 Rate.add_values(
     (
-        ("ONE_SHOT", 0),
-        ("RATE_1_HZ", 1),
-        ("RATE_7_HZ", 2),
-        ("RATE_12_5_HZ", 3),
+        ("ONE_SHOT", 0, 0),
+        (
+            "RATE_1_HZ",
+            1,
+        ),
+        ("RATE_7_HZ", 2, 7),
+        ("RATE_12_5_HZ", 3, 12.5),
     )
 )
 
