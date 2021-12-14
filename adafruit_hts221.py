@@ -113,10 +113,7 @@ class Rate(CV):
 Rate.add_values(
     (
         ("ONE_SHOT", 0, 0),
-        (
-            "RATE_1_HZ",
-            1,
-        ),
+        ("RATE_1_HZ", 1, 1),
         ("RATE_7_HZ", 2, 7),
         ("RATE_12_5_HZ", 3, 12.5),
     )
