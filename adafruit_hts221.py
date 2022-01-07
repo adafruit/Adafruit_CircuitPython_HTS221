@@ -75,7 +75,6 @@ class CV:
         cls, value_tuples: Sequence[Tuple[str, int, Union[int, str]]]
     ) -> None:
         """creates CV entries"""
-        cls.contents = {}
         cls.label = {}
 
         for value_tuple in value_tuples:
