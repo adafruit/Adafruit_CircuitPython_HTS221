@@ -72,7 +72,7 @@ class CV:
 
     @classmethod
     def add_values(
-        cls, value_tuples: Sequence[Tuple[str, int, Union[int, str]]]
+        cls, value_tuples: Sequence[Tuple[str, int, Union[int, float]]]
     ) -> None:
         """creates CV entries"""
         cls.label = {}
