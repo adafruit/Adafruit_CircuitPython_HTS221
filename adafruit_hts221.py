@@ -25,7 +25,7 @@ Implementation Notes
  * Adafruit's Register library: https://github.com/adafruit/Adafruit_CircuitPython_Register
 
 """
-__version__ = "0.0.0-auto.0"
+__version__ = "0.0.0+auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_HTS221.git"
 
 from micropython import const
