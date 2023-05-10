@@ -6,7 +6,7 @@ repos:
   - repo: https://github.com/python/black
     rev: 23.3.0
     hooks:
-      - id: black_Pixie
+      - id: black
   - repo: https://github.com/fsfe/reuse-tool
     rev: v1.1.2
     hooks:
