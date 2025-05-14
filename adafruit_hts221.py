@@ -25,17 +25,19 @@ Implementation Notes
  * Adafruit's Register library: https://github.com/adafruit/Adafruit_CircuitPython_Register
 
 """
+
 __version__ = "0.0.0+auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_HTS221.git"
 
-from micropython import const
 import adafruit_bus_device.i2c_device as i2cdevice
+from adafruit_register.i2c_bit import ROBit, RWBit
+from adafruit_register.i2c_bits import ROBits, RWBits
 from adafruit_register.i2c_struct import ROUnaryStruct
-from adafruit_register.i2c_bits import RWBits, ROBits
-from adafruit_register.i2c_bit import RWBit, ROBit
+from micropython import const
 
 try:
-    from typing import Union, Sequence, Tuple
+    from typing import Sequence, Tuple, Union
+
     from busio import I2C
 except ImportError:
     pass
@@ -71,9 +73,7 @@ class CV:
     """struct helper"""
 
     @classmethod
-    def add_values(
-        cls, value_tuples: Sequence[Tuple[str, int, Union[int, float]]]
-    ) -> None:
+    def add_values(cls, value_tuples: Sequence[Tuple[str, int, Union[int, float]]]) -> None:
         """creates CV entries"""
         cls.label = {}
 
@@ -106,7 +106,7 @@ class Rate(CV):
 
     """
 
-    pass  # pylint: disable=unnecessary-pass
+    pass
 
 
 Rate.add_values(
@@ -119,7 +119,7 @@ Rate.add_values(
 )
 
 
-class HTS221:  # pylint: disable=too-many-instance-attributes
+class HTS221:
     """Library for the ST HTS221 Humidity and Temperature Sensor
 
     :param ~busio.I2C i2c_bus: The I2C bus the HTS221 is connected to
@@ -178,13 +178,11 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
 
     def __init__(self, i2c_bus: I2C) -> None:
         self.i2c_device = i2cdevice.I2CDevice(i2c_bus, _HTS221_DEFAULT_ADDRESS)
-        if not self._chip_id in [_HTS221_CHIP_ID]:
-            raise RuntimeError(
-                "Failed to find HTS221HB! Found chip ID 0x%x" % self._chip_id
-            )
+        if self._chip_id not in {_HTS221_CHIP_ID}:
+            raise RuntimeError("Failed to find HTS221HB! Found chip ID 0x%x" % self._chip_id)
         self._boot()
         self.enabled = True
-        self.data_rate = Rate.RATE_12_5_HZ  # pylint:disable=no-member
+        self.data_rate = Rate.RATE_12_5_HZ
 
         t1_t0_msbs = self._t1_t0_deg_c_x8_msbits
         self.calib_temp_value_0 = self._t0_deg_c_x8_lsbyte
@@ -227,9 +225,7 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
 
         correction_factor = calibrated_value_delta / calibrated_measurement_delta
 
-        adjusted_humidity = (
-            zeroed_measured_humidity * correction_factor + calibration_value_offset
-        )
+        adjusted_humidity = zeroed_measured_humidity * correction_factor + calibration_value_offset
 
         return adjusted_humidity
 
@@ -246,9 +242,7 @@ class HTS221:  # pylint: disable=too-many-instance-attributes
 
         correction_factor = calibrated_value_delta / calibrated_measurement_delta
 
-        adjusted_temp = (
-            zeroed_measured_temp * correction_factor
-        ) + calibration_value_offset
+        adjusted_temp = (zeroed_measured_temp * correction_factor) + calibration_value_offset
 
         return adjusted_temp
 
