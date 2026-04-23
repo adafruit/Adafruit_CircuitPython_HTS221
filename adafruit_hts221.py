@@ -179,7 +179,7 @@ class HTS221:
     def __init__(self, i2c_bus: I2C) -> None:
         self.i2c_device = i2cdevice.I2CDevice(i2c_bus, _HTS221_DEFAULT_ADDRESS)
         if self._chip_id not in {_HTS221_CHIP_ID}:
-            raise RuntimeError("Failed to find HTS221HB! Found chip ID 0x%x" % self._chip_id)
+            raise RuntimeError(f"Failed to find HTS221HB! Found chip ID 0x{self._chip_id:x}")
         self._boot()
         self.enabled = True
         self.data_rate = Rate.RATE_12_5_HZ
